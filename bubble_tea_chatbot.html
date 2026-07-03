@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bubble Tea Machine — FAQ Assistant</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f4f5; min-height: 100vh; display: flex; flex-direction: column; }
+
+  .header { background: #1A7A8A; padding: 16px 20px; display: flex; align-items: center; gap: 12px; }
+  .header-avatar { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .header-text .name { color: #fff; font-size: 16px; font-weight: 600; }
+  .header-text .status { color: rgba(255,255,255,0.75); font-size: 12px; margin-top: 2px; }
+  .online-dot { display: inline-block; width: 7px; height: 7px; background: #7DDFB0; border-radius: 50%; margin-right: 4px; }
+
+  .chat-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; max-height: calc(100vh - 140px); }
+
+  .msg-row { display: flex; gap: 8px; align-items: flex-end; }
+  .msg-row.user { flex-direction: row-reverse; }
+  .bot-icon { width: 28px; height: 28px; border-radius: 50%; background: #1A7A8A; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .bubble { max-width: 78%; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.55; }
+  .bubble.bot { background: #fff; color: #1a1a1a; border-radius: 4px 18px 18px 18px; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+  .bubble.user { background: #1A7A8A; color: #fff; border-radius: 18px 18px 4px 18px; }
+  .bubble.typing { color: #888; font-style: italic; background: #fff; border-radius: 4px 18px 18px 18px; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+
+  .suggestions { display: flex; flex-wrap: wrap; gap: 7px; padding: 4px 0 4px 36px; }
+  .suggestion { font-size: 12px; padding: 6px 12px; border: 1.5px solid #1A7A8A; color: #1A7A8A; border-radius: 16px; cursor: pointer; background: #fff; transition: all 0.15s; }
+  .suggestion:hover, .suggestion:active { background: #1A7A8A; color: #fff; }
+
+  .input-row { background: #fff; border-top: 1px solid #e5e5e5; padding: 10px 14px; display: flex; gap: 8px; align-items: center; }
+  .input-row input { flex: 1; border: 1px solid #ddd; border-radius: 20px; padding: 9px 16px; font-size: 14px; outline: none; background: #f7f7f7; }
+  .input-row input:focus { border-color: #1A7A8A; background: #fff; }
+  .send-btn { width: 38px; height: 38px; border-radius: 50%; background: #1A7A8A; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: background 0.15s; }
+  .send-btn:hover { background: #155f6e; }
+  .send-btn svg { width: 16px; height: 16px; fill: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-avatar">🧋</div>
+  <div class="header-text">
+    <div class="name">Bubble Tea Assistant</div>
+    <div class="status"><span class="online-dot"></span>Online — ask us anything</div>
+  </div>
+</div>
+
+<div class="chat-body" id="chatBody">
+  <div class="msg-row">
+    <div class="bot-icon">🧋</div>
+    <div class="bubble bot">Hi! I can answer your questions about our bubble tea machine program — pricing, setup, operations, and more. What would you like to know?</div>
+  </div>
+  <div class="suggestions">
+    <span class="suggestion" onclick="ask(this.innerText)">How much does it cost?</span>
+    <span class="suggestion" onclick="ask(this.innerText)">How does the lease work?</span>
+    <span class="suggestion" onclick="ask(this.innerText)">Is it easy to operate?</span>
+    <span class="suggestion" onclick="ask(this.innerText)">What certifications does it have?</span>
+  </div>
+</div>
+
+<div class="input-row">
+  <input type="text" id="userInput" placeholder="Type your question..." onkeydown="if(event.key==='Enter')sendMsg()" />
+  <button class="send-btn" onclick="sendMsg()">
+    <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+  </button>
+</div>
+
+<script>
+const kb = [
+  { q: ["cost","price","monthly","fee","rent","how much","pricing"], a: "The monthly lease is <strong>$399/month</strong>. There's also a security deposit equal to 2 months' rent ($798) upfront. Ingredients are billed separately each month based on usage." },
+  { q: ["lease","how does","work","term","cancel","minimum","commit"], a: "There's <strong>no minimum lease term</strong> — you can cancel without a penalty. A 12-month agreement is also available, with the option to return the machine early if daily sales don't reach 8 cups/day in the first three months." },
+  { q: ["deposit","upfront","installation fee","hidden"], a: "There's a <strong>security deposit equal to 2 months' rent</strong> ($798 upfront). No separate installation fee — Mascon handles delivery and setup at no extra charge." },
+  { q: ["second machine","discount","additional","more machine"], a: "A second machine can be arranged at a <strong>discounted rate</strong>. The specific discount is determined based on your setup — reach out to us for details." },
+  { q: ["install","setup","space","power","dimension","size","how big","room"], a: "Installation takes about <strong>4 hours</strong>. Machine dimensions are approximately <strong>660 × 540 × 1150 mm</strong> (L × W × H). We'll walk you through space and power requirements before delivery." },
+  { q: ["operate","easy","staff","skill","training","hard","complicated","learn"], a: "Very easy — <strong>no special skills needed</strong>. Staff only need about 2 hours of instruction to run it confidently. We also provide operation videos and a one-page cleaning guide." },
+  { q: ["drink","flavor","menu","variety","what can","options","offer"], a: "We currently offer a <strong>menu of 6–7 flavors</strong>. Sugar level is adjustable (reduced-sugar options available), and caffeine-free options are possible with fruit-based drinks. Full menu available on request." },
+  { q: ["how many","output","production","capacity","per hour","speed","fast"], a: "The machine makes a drink in about <strong>20 seconds</strong> — roughly 180 drinks/hour at full capacity." },
+  { q: ["electric","power","energy","kwh","consumption","utility"], a: "The machine draws roughly <strong>0.2–0.4 kW</strong> while active, averaging around <strong>2–5 kWh per day</strong> (about 60–150 kWh/month) depending on temperature and usage." },
+  { q: ["ingredient","reorder","supply","order","delivery","stock","replenish"], a: "Your first ingredient order comes with the machine at setup. After that, <strong>Mascon monitors your usage and sends a suggested monthly order</strong>. Ingredients ship same-day; the restaurant covers the shipping fee." },
+  { q: ["clean","cleaning","maintenance","daily","hygiene"], a: "<strong>Daily cleaning takes about 45 minutes</strong> — just set up a water bucket, no manual labor needed. Weekly syrup container cleaning takes about 20 minutes. Mascon handles any technical repairs." },
+  { q: ["repair","breakdown","fix","service","technical issue","malfunction","broken"], a: "Mascon handles all technical issues. <strong>Remote issues are resolved within 24 hours</strong>; on-site repairs are arranged case by case. All technical parts and repairs are covered by Mascon." },
+  { q: ["certif","compliance","nsf","etl","ul","food safe","health","approved"], a: "The machine is <strong>ETL-certified by Intertek</strong>, carrying NSF, UL, and CSA marks — covering electrical safety (UL 197) and food/beverage sanitation (NSF/ANSI 18). <strong>No additional certification is required</strong> from the restaurant." },
+  { q: ["contact","support","reach","help","who","question"], a: "Your main point of contact is <strong>Cy</strong>. Support is available in both <strong>English and Chinese</strong>." },
+  { q: ["reference","visit","existing","see","example","demo","other restaurant"], a: "Yes — you can visit our <strong>Andover location</strong> to see the machine in action. Just let us know and we'll coordinate a visit." },
+  { q: ["breakeven","break even","cups","target","profit","make money","revenue"], a: "A good target is <strong>8+ cups/day</strong> to make the lease work comfortably. At $399/month rent, that's a low bar — many of our current locations average 15–20 cups/day." },
+  { q: ["sugar","caffeine","gluten","decaf","allergy","dietary"], a: "Sugar level is adjustable on every drink. Caffeine-free options are available with fruit-based drinks. Tapioca pearls are naturally gluten-free — specific syrups and toppings should be confirmed against our ingredient sheets." },
+  { q: ["inventory","how much stock","keep on hand"], a: "We recommend keeping roughly <strong>0.5–1.5 months of inventory</strong> on hand at each location. Mascon tracks usage via the machine's background server and will flag when reorders are needed." },
+];
+
+function findAnswer(text) {
+  const t = text.toLowerCase();
+  for (const item of kb) {
+    if (item.q.some(k => t.includes(k))) return item.a;
+  }
+  return null;
+}
+
+function addBotMsg(html) {
+  const body = document.getElementById('chatBody');
+  const row = document.createElement('div');
+  row.className = 'msg-row';
+  row.innerHTML = '<div class="bot-icon">🧋</div><div class="bubble bot">' + html + '</div>';
+  body.appendChild(row);
+  body.scrollTop = body.scrollHeight;
+  return row;
+}
+
+function addUserMsg(text) {
+  const body = document.getElementById('chatBody');
+  const row = document.createElement('div');
+  row.className = 'msg-row user';
+  row.innerHTML = '<div class="bubble user">' + text + '</div>';
+  body.appendChild(row);
+  body.scrollTop = body.scrollHeight;
+}
+
+function ask(q) {
+  document.getElementById('userInput').value = q;
+  sendMsg();
+}
+
+function sendMsg() {
+  const input = document.getElementById('userInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addUserMsg(text);
+
+  const typing = addBotMsg('<span style="color:#aaa;font-style:italic">Typing...</span>');
+  setTimeout(() => {
+    typing.remove();
+    const ans = findAnswer(text);
+    if (ans) {
+      addBotMsg(ans);
+    } else {
+      addBotMsg("Thanks for your question. I don't have that specific detail on hand — a team member will follow up with you directly. Feel free to ask anything else!");
+    }
+  }, 700);
+}
+</script>
+</body>
+</html>
