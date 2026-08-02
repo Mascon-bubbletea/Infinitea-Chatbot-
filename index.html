@@ -22,22 +22,23 @@
   .suggestions { display: flex; flex-wrap: wrap; gap: 7px; padding: 4px 0 4px 36px; }
   .suggestion { font-size: 12px; padding: 6px 12px; border: 1.5px solid #1A7A8A; color: #1A7A8A; border-radius: 16px; cursor: pointer; background: #fff; transition: all 0.15s; }
   .suggestion:hover, .suggestion:active { background: #1A7A8A; color: #fff; }
-  .input-row { background: #fff; border-top: 1px solid #e5e5e5; padding: 10px 14px 80px 14px; display: flex; gap: 8px; align-items: center; }
+  .input-row { background: #fff; border-top: 1px solid #e5e5e5; padding: 10px 14px; display: flex; gap: 8px; align-items: center; }
   .input-row input { flex: 1; border: 1px solid #ddd; border-radius: 20px; padding: 9px 16px; font-size: 14px; outline: none; background: #f7f7f7; }
   .input-row input:focus { border-color: #1A7A8A; background: #fff; }
   .send-btn { width: 38px; height: 38px; border-radius: 50%; background: #1A7A8A; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: background 0.15s; }
   .send-btn:hover { background: #155f6e; }
   .send-btn svg { width: 16px; height: 16px; fill: #fff; }
-  /* Contact form card */
+  /* Contact card */
   .contact-card { background: #fff; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); max-width: 78%; margin-left: 36px; }
   .contact-card input { width: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 8px 12px; font-size: 13px; margin-top: 8px; outline: none; }
   .contact-card input:focus { border-color: #1A7A8A; }
-  .contact-card .card-label { font-size: 13px; color: #445566; margin-top: 10px; display: block; }
+  .card-label { font-size: 13px; color: #445566; margin-top: 10px; display: block; }
   .card-actions { display: flex; gap: 8px; margin-top: 12px; }
   .card-submit { background: #1A7A8A; color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; flex: 1; }
   .card-skip { background: transparent; color: #888; border: 1px solid #ddd; border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; }
-
-
+  /* Contact us button */
+  .contact-btn { display: inline-block; margin: 4px 0 4px 36px; background: #1A7A8A; color: #fff; border: none; border-radius: 20px; padding: 10px 20px; font-size: 14px; cursor: pointer; }
+  .contact-btn:hover { background: #155f6e; }
 </style>
 </head>
 <body>
@@ -77,8 +78,8 @@ const kb = [
   { q: ["contact","support","reach","help","who","question"], a: "Your main point of contact is <strong>Cy</strong>. Support is available in both <strong>English and Chinese</strong>." },
   { q: ["reference","visit","existing","see","example","demo","other restaurant"], a: "Yes — you can visit our <strong>Andover location</strong> to see the machine in action. Just let us know and we'll coordinate a visit." },
   { q: ["breakeven","break even","cups","target","profit","make money","revenue"], a: "A good target is <strong>8+ cups/day</strong> to make the lease work comfortably. At $399/month rent, that's a low bar — many of our current locations average 15–20 cups/day." },
-  { q: ["sugar","caffeine","gluten","decaf","allergy","dietary"], a: "Sugar level is adjustable on every drink. Caffeine-free options are available with fruit-based drinks. Tapioca pearls are naturally gluten-free — specific syrups and toppings should be confirmed against our ingredient sheets." },
-  { q: ["inventory","how much stock","keep on hand"], a: "We recommend keeping roughly <strong>0.5–1.5 months of inventory</strong> on hand at each location. Mascon tracks usage and will flag when reorders are needed." },
+  { q: ["sugar","caffeine","gluten","decaf","allergy","dietary"], a: "Sugar level is adjustable on every drink. Caffeine-free options are available with fruit-based drinks. Tapioca pearls are naturally gluten-free." },
+  { q: ["inventory","how much stock","keep on hand"], a: "We recommend keeping roughly <strong>0.5–1.5 months of inventory</strong> on hand. Mascon tracks usage and will flag when reorders are needed." },
 ];
 
 const conversationLog = [];
@@ -125,7 +126,6 @@ function addSuggestions() {
   body.scrollTop = body.scrollHeight;
 }
 
-// Send visitor identity to Tidio
 function setTidioVisitor() {
   const trySet = setInterval(() => {
     if (window.tidioChatApi) {
@@ -138,14 +138,10 @@ function setTidioVisitor() {
   }, 300);
 }
 
-// Sync every message to Tidio as a visitor note (background only, not visible in chat)
-function syncToTidio(role, text) {
+function syncToTidio() {
   const trySync = setInterval(() => {
     if (window.tidioChatApi) {
       clearInterval(trySync);
-      const label = role === 'user'
-        ? (visitorName || 'Customer') + ': '
-        : 'Bot: ';
       window.tidioChatApi.setVisitorData({
         notes: conversationLog.map(m =>
           (m.role === 'user' ? (visitorName || 'Customer') + ': ' : 'Bot: ') + m.text
@@ -155,8 +151,7 @@ function syncToTidio(role, text) {
   }, 300);
 }
 
-// Open Tidio for human handoff
-function handoffToTidio() {
+function openTidio() {
   const tryOpen = setInterval(() => {
     if (window.tidioChatApi) {
       clearInterval(tryOpen);
@@ -165,12 +160,19 @@ function handoffToTidio() {
   }, 300);
 }
 
-// Contact card shown at start
+// Hide Tidio bubble by default — only show when needed
+function hideTidioBubble() {
+  const tryHide = setInterval(() => {
+    if (window.tidioChatApi) {
+      clearInterval(tryHide);
+      window.tidioChatApi.hide();
+    }
+  }, 300);
+}
+
 function showContactCard() {
-  const body = document.getElementById('chatBody');
-
   addBotMsg("Hi! Welcome to the Bubble Tea Machine program. 👋<br>Feel free to share your name and email so we can follow up if needed — or tap <strong>Skip</strong> to jump straight to questions.<br><br>您好！欢迎了解奶茶机项目。请留下您的姓名和邮箱，方便我们后续联系，或点击<strong>跳过</strong>直接提问。");
-
+  const body = document.getElementById('chatBody');
   const card = document.createElement('div');
   card.className = 'contact-card';
   card.id = 'contactCard';
@@ -189,15 +191,11 @@ function showContactCard() {
 }
 
 function submitContact() {
-  const name = document.getElementById('inputName').value.trim();
-  const email = document.getElementById('inputEmail').value.trim();
-  visitorName = name || '';
-  visitorEmail = email || '';
+  visitorName = document.getElementById('inputName').value.trim();
+  visitorEmail = document.getElementById('inputEmail').value.trim();
   document.getElementById('contactCard').remove();
-
-  const display = name ? 'Thanks, ' + name + '!' : 'Got it!';
-  addUserMsg((name || '') + (name && email ? '  |  ' : '') + (email || ''));
-  addBotMsg(display + ' What would you like to know about the bubble tea machine program?');
+  addUserMsg((visitorName || '') + (visitorName && visitorEmail ? '  |  ' : '') + (visitorEmail || ''));
+  addBotMsg((visitorName ? 'Thanks, ' + visitorName + '!' : 'Got it!') + ' What would you like to know about the bubble tea machine program?');
   if (visitorName || visitorEmail) setTidioVisitor();
   addSuggestions();
   enableInput();
@@ -240,17 +238,26 @@ function sendMsg() {
       conversationLog.push({ role: 'bot', text: stripHtml(ans) });
       syncToTidio();
     } else {
-      const fallback = 'This question is best answered by our team. Please click the chat icon on the right side of this page to speak with us directly.<br><br>这个问题由我们的团队来回答更合适，请点击页面右侧的聊天图标联系我们，我们会尽快回复您。';
-      addBotMsg(fallback);
+      addBotMsg('This question is best answered by our team. Please tap the button below to chat with us directly.<br><br>这个问题由我们的团队来回答更合适，请点击下方按钮直接联系我们。');
       conversationLog.push({ role: 'bot', text: 'Transferred to human agent.' });
       syncToTidio();
-      handoffToTidio();
+      // Show Contact Us button — no floating bubble
+      const body = document.getElementById('chatBody');
+      const btn = document.createElement('button');
+      btn.className = 'contact-btn';
+      btn.innerHTML = '💬 Contact Us / 联系我们';
+      btn.onclick = function() { openTidio(); btn.remove(); };
+      body.appendChild(btn);
+      body.scrollTop = body.scrollHeight;
     }
   }, 700);
 }
 
-// Start with contact card
-window.addEventListener('load', showContactCard);
+window.addEventListener('load', function() {
+  showContactCard();
+  // Hide Tidio bubble after it loads
+  hideTidioBubble();
+});
 </script>
 
 <script src="//code.tidio.co/cmugavljrqny2fjtctdcbrkn2lcqgveu.js" async></script>
