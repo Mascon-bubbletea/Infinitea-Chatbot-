@@ -7,15 +7,12 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f4f5; min-height: 100vh; display: flex; flex-direction: column; }
-
   .header { background: #1A7A8A; padding: 16px 20px; display: flex; align-items: center; gap: 12px; }
   .header-avatar { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
   .header-text .name { color: #fff; font-size: 16px; font-weight: 600; }
   .header-text .status { color: rgba(255,255,255,0.75); font-size: 12px; margin-top: 2px; }
   .online-dot { display: inline-block; width: 7px; height: 7px; background: #7DDFB0; border-radius: 50%; margin-right: 4px; }
-
   .chat-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; max-height: calc(100vh - 140px); }
-
   .msg-row { display: flex; gap: 8px; align-items: flex-end; }
   .msg-row.user { flex-direction: row-reverse; }
   .bot-icon { width: 28px; height: 28px; border-radius: 50%; background: #1A7A8A; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
@@ -23,11 +20,9 @@
   .bubble.bot { background: #fff; color: #1a1a1a; border-radius: 4px 18px 18px 18px; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
   .bubble.user { background: #1A7A8A; color: #fff; border-radius: 18px 18px 4px 18px; }
   .bubble.typing { color: #888; font-style: italic; background: #fff; border-radius: 4px 18px 18px 18px; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
-
   .suggestions { display: flex; flex-wrap: wrap; gap: 7px; padding: 4px 0 4px 36px; }
   .suggestion { font-size: 12px; padding: 6px 12px; border: 1.5px solid #1A7A8A; color: #1A7A8A; border-radius: 16px; cursor: pointer; background: #fff; transition: all 0.15s; }
   .suggestion:hover, .suggestion:active { background: #1A7A8A; color: #fff; }
-
   .input-row { background: #fff; border-top: 1px solid #e5e5e5; padding: 10px 14px; display: flex; gap: 8px; align-items: center; }
   .input-row input { flex: 1; border: 1px solid #ddd; border-radius: 20px; padding: 9px 16px; font-size: 14px; outline: none; background: #f7f7f7; }
   .input-row input:focus { border-color: #1A7A8A; background: #fff; }
@@ -74,7 +69,7 @@ const kb = [
   { q: ["second machine","discount","additional","more machine"], a: "A second machine can be arranged at a <strong>discounted rate</strong>. The specific discount is determined based on your setup — reach out to us for details." },
   { q: ["install","setup","space","power","dimension","size","how big","room"], a: "Installation takes about <strong>4 hours</strong>. Machine dimensions are approximately <strong>660 × 540 × 1150 mm</strong> (L × W × H). We'll walk you through space and power requirements before delivery." },
   { q: ["operate","easy","staff","skill","training","hard","complicated","learn"], a: "Very easy — <strong>no special skills needed</strong>. Staff only need about 2 hours of instruction to run it confidently. We also provide operation videos and a one-page cleaning guide." },
-  { q: ["drink","flavor","menu","variety","what can","options","offer"], a: "We currently offer a <strong>menu of 6–7 flavors</strong>. Sugar level is adjustable (reduced-sugar options available), and caffeine-free options are possible with fruit-based drinks. Full menu available on request." },
+  { q: ["drink","flavor","menu","variety","what can","options","offer"], a: "We currently offer a <strong>menu of 6–7 flavors</strong>. Sugar level is adjustable, and caffeine-free options are available with fruit-based drinks. Full menu available on request." },
   { q: ["how many","output","production","capacity","per hour","speed","fast"], a: "The machine makes a drink in about <strong>20 seconds</strong> — roughly 180 drinks/hour at full capacity." },
   { q: ["electric","power","energy","kwh","consumption","utility"], a: "The machine draws roughly <strong>0.2–0.4 kW</strong> while active, averaging around <strong>2–5 kWh per day</strong> (about 60–150 kWh/month) depending on temperature and usage." },
   { q: ["ingredient","reorder","supply","order","delivery","stock","replenish"], a: "Your first ingredient order comes with the machine at setup. After that, <strong>Mascon monitors your usage and sends a suggested monthly order</strong>. Ingredients ship same-day; the restaurant covers the shipping fee." },
@@ -85,7 +80,7 @@ const kb = [
   { q: ["reference","visit","existing","see","example","demo","other restaurant"], a: "Yes — you can visit our <strong>Andover location</strong> to see the machine in action. Just let us know and we'll coordinate a visit." },
   { q: ["breakeven","break even","cups","target","profit","make money","revenue"], a: "A good target is <strong>8+ cups/day</strong> to make the lease work comfortably. At $399/month rent, that's a low bar — many of our current locations average 15–20 cups/day." },
   { q: ["sugar","caffeine","gluten","decaf","allergy","dietary"], a: "Sugar level is adjustable on every drink. Caffeine-free options are available with fruit-based drinks. Tapioca pearls are naturally gluten-free — specific syrups and toppings should be confirmed against our ingredient sheets." },
-  { q: ["inventory","how much stock","keep on hand"], a: "We recommend keeping roughly <strong>0.5–1.5 months of inventory</strong> on hand at each location. Mascon tracks usage via the machine's background server and will flag when reorders are needed." },
+  { q: ["inventory","how much stock","keep on hand"], a: "We recommend keeping roughly <strong>0.5–1.5 months of inventory</strong> on hand at each location. Mascon tracks usage and will flag when reorders are needed." },
 ];
 
 function findAnswer(text) {
@@ -134,11 +129,12 @@ function sendMsg() {
     if (ans) {
       addBotMsg(ans);
     } else {
-      addBotMsg("Thanks for your question. I don't have that specific detail on hand — a team member will follow up with you directly. Feel free to ask anything else!");
+      addBotMsg('This question is best answered by our team directly. Please click the chat icon at the bottom right of this page to speak with us — we\'ll get back to you right away.<br><br>这个问题由我们的团队来回答更合适，请点击页面右下角的聊天图标联系我们，我们会尽快回复您。');
     }
   }, 700);
 }
 </script>
- <script src="//code.tidio.co/cmugavljrqny2fjtctdcbrkn2lcqgveu.js" async></script>
+
+<script src="//code.tidio.co/cmugavljrqny2fjtctdcbrkn2lcqgveu.js" async></script>
 </body>
 </html>
