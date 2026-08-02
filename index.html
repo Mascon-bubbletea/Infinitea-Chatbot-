@@ -152,6 +152,9 @@ function syncToTidio() {
 }
 
 function openTidio() {
+  // Remove CSS hide first so Tidio becomes visible
+  const hideStyle = document.getElementById('tidio-hide-style');
+  if (hideStyle) hideStyle.remove();
   const tryOpen = setInterval(() => {
     if (window.tidioChatApi) {
       clearInterval(tryOpen);
@@ -162,12 +165,11 @@ function openTidio() {
 
 // Hide Tidio bubble by default — only show when needed
 function hideTidioBubble() {
-  const tryHide = setInterval(() => {
-    if (window.tidioChatApi) {
-      clearInterval(tryHide);
-      window.tidioChatApi.hide();
-    }
-  }, 300);
+  // Use CSS to hide the bubble visually — keeps Tidio running so open() works
+  const style = document.createElement('style');
+  style.innerHTML = '#tidio-chat { display: none !important; } #tidio-chat-iframe { display: none !important; }';
+  style.id = 'tidio-hide-style';
+  document.head.appendChild(style);
 }
 
 function showContactCard() {
