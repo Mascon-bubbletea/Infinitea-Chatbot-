@@ -152,15 +152,28 @@ function syncToTidio() {
 }
 
 function openTidio() {
-  // Remove CSS hide first so Tidio becomes visible
+  // Show Tidio iframe first
   const hideStyle = document.getElementById('tidio-hide-style');
   if (hideStyle) hideStyle.remove();
-  const tryOpen = setInterval(() => {
-    if (window.tidioChatApi) {
-      clearInterval(tryOpen);
-      window.tidioChatApi.open();
+  // Find and click the Tidio button inside the iframe
+  let attempts = 0;
+  const tryClick = setInterval(() => {
+    attempts++;
+    if (attempts > 30) { clearInterval(tryClick); return; }
+    // Make iframe visible
+    const iframe = document.querySelector('#tidio-chat-iframe');
+    if (iframe) {
+      iframe.style.cssText = 'display:block!important;visibility:visible!important;';
     }
-  }, 300);
+    // Try API open
+    if (window.tidioChatApi) {
+      try {
+        window.tidioChatApi.show();
+        window.tidioChatApi.open();
+        clearInterval(tryClick);
+      } catch(e) {}
+    }
+  }, 200);
 }
 
 // Hide Tidio bubble by default — only show when needed
