@@ -28,8 +28,16 @@
   .send-btn { width: 38px; height: 38px; border-radius: 50%; background: #1A7A8A; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: background 0.15s; }
   .send-btn:hover { background: #155f6e; }
   .send-btn svg { width: 16px; height: 16px; fill: #fff; }
-  /* Push Tidio widget up so it doesn't overlap the input bar */
-  #tidio-chat-iframe { bottom: 80px !important; }
+  /* Contact form card */
+  .contact-card { background: #fff; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); max-width: 78%; margin-left: 36px; }
+  .contact-card input { width: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 8px 12px; font-size: 13px; margin-top: 8px; outline: none; }
+  .contact-card input:focus { border-color: #1A7A8A; }
+  .contact-card .card-label { font-size: 13px; color: #445566; margin-top: 10px; display: block; }
+  .card-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .card-submit { background: #1A7A8A; color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; flex: 1; }
+  .card-skip { background: transparent; color: #888; border: 1px solid #ddd; border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; }
+  /* Tidio position: right middle */
+  #tidio-chat-iframe { bottom: 45vh !important; right: 0px !important; }
 </style>
 </head>
 <body>
@@ -42,22 +50,11 @@
   </div>
 </div>
 
-<div class="chat-body" id="chatBody">
-  <div class="msg-row">
-    <div class="bot-icon">🧋</div>
-    <div class="bubble bot">Hi! I can answer your questions about our bubble tea machine program — pricing, setup, operations, and more. What would you like to know?</div>
-  </div>
-  <div class="suggestions">
-    <span class="suggestion" onclick="ask(this.innerText)">How much does it cost?</span>
-    <span class="suggestion" onclick="ask(this.innerText)">How does the lease work?</span>
-    <span class="suggestion" onclick="ask(this.innerText)">Is it easy to operate?</span>
-    <span class="suggestion" onclick="ask(this.innerText)">What certifications does it have?</span>
-  </div>
-</div>
+<div class="chat-body" id="chatBody"></div>
 
 <div class="input-row">
-  <input type="text" id="userInput" placeholder="Type your question..." onkeydown="if(event.key==='Enter')sendMsg()" />
-  <button class="send-btn" onclick="sendMsg()">
+  <input type="text" id="userInput" placeholder="Type your question..." onkeydown="if(event.key==='Enter')sendMsg()" disabled />
+  <button class="send-btn" onclick="sendMsg()" id="sendBtn" disabled style="opacity:0.4">
     <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
   </button>
 </div>
@@ -85,18 +82,10 @@ const kb = [
 ];
 
 const conversationLog = [];
+let visitorName = '';
+let visitorEmail = '';
 
-function findAnswer(text) {
-  const t = text.toLowerCase();
-  for (const item of kb) {
-    if (item.q.some(k => t.includes(k))) return item.a;
-  }
-  return null;
-}
-
-function stripHtml(html) {
-  return html.replace(/<[^>]*>/g, '');
-}
+function stripHtml(html) { return html.replace(/<[^>]*>/g, ''); }
 
 function addBotMsg(html) {
   const body = document.getElementById('chatBody');
@@ -117,20 +106,116 @@ function addUserMsg(text) {
   body.scrollTop = body.scrollHeight;
 }
 
-function sendConversationToTidio() {
-  if (conversationLog.length === 0) return;
-  const summary = conversationLog.map(m =>
-    (m.role === 'user' ? '👤 Customer: ' : '🤖 Bot: ') + m.text
-  ).join('\n');
-  const sendWhenReady = setInterval(() => {
+function enableInput() {
+  document.getElementById('userInput').disabled = false;
+  document.getElementById('sendBtn').disabled = false;
+  document.getElementById('sendBtn').style.opacity = '1';
+  document.getElementById('userInput').focus();
+}
+
+function addSuggestions() {
+  const body = document.getElementById('chatBody');
+  const div = document.createElement('div');
+  div.className = 'suggestions';
+  div.innerHTML = [
+    'How much does it cost?','How does the lease work?',
+    'Is it easy to operate?','What certifications does it have?'
+  ].map(q => `<span class="suggestion" onclick="ask(this.innerText)">${q}</span>`).join('');
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+}
+
+// Send visitor identity to Tidio
+function setTidioVisitor() {
+  const trySet = setInterval(() => {
     if (window.tidioChatApi) {
-      clearInterval(sendWhenReady);
-      window.tidioChatApi.open();
-      window.tidioChatApi.messageFromVisitor(
-        '--- Previous conversation ---\n' + summary + '\n--- End of previous conversation ---\n\nI need help from a team member.'
-      );
+      clearInterval(trySet);
+      const data = {};
+      if (visitorName) data.name = visitorName;
+      if (visitorEmail) data.email = visitorEmail;
+      if (Object.keys(data).length) window.tidioChatApi.setVisitorData(data);
     }
   }, 300);
+}
+
+// Sync every message to Tidio as a visitor note (background only, not visible in chat)
+function syncToTidio(role, text) {
+  const trySync = setInterval(() => {
+    if (window.tidioChatApi) {
+      clearInterval(trySync);
+      const label = role === 'user'
+        ? (visitorName || 'Customer') + ': '
+        : 'Bot: ';
+      window.tidioChatApi.setVisitorData({
+        notes: conversationLog.map(m =>
+          (m.role === 'user' ? (visitorName || 'Customer') + ': ' : 'Bot: ') + m.text
+        ).join('\n')
+      });
+    }
+  }, 300);
+}
+
+// Open Tidio for human handoff
+function handoffToTidio() {
+  const tryOpen = setInterval(() => {
+    if (window.tidioChatApi) {
+      clearInterval(tryOpen);
+      window.tidioChatApi.open();
+    }
+  }, 300);
+}
+
+// Contact card shown at start
+function showContactCard() {
+  const body = document.getElementById('chatBody');
+
+  addBotMsg("Hi! Welcome to the Bubble Tea Machine program. 👋<br>Feel free to share your name and email so we can follow up if needed — or tap <strong>Skip</strong> to jump straight to questions.<br><br>您好！欢迎了解奶茶机项目。请留下您的姓名和邮箱，方便我们后续联系，或点击<strong>跳过</strong>直接提问。");
+
+  const card = document.createElement('div');
+  card.className = 'contact-card';
+  card.id = 'contactCard';
+  card.innerHTML = `
+    <span class="card-label">Name / 姓名</span>
+    <input type="text" id="inputName" placeholder="Your name" />
+    <span class="card-label">Email / 邮箱</span>
+    <input type="email" id="inputEmail" placeholder="your@email.com" />
+    <div class="card-actions">
+      <button class="card-submit" onclick="submitContact()">Submit / 提交</button>
+      <button class="card-skip" onclick="skipContact()">Skip / 跳过</button>
+    </div>
+  `;
+  body.appendChild(card);
+  body.scrollTop = body.scrollHeight;
+}
+
+function submitContact() {
+  const name = document.getElementById('inputName').value.trim();
+  const email = document.getElementById('inputEmail').value.trim();
+  visitorName = name || '';
+  visitorEmail = email || '';
+  document.getElementById('contactCard').remove();
+
+  const display = name ? 'Thanks, ' + name + '!' : 'Got it!';
+  addUserMsg((name || '') + (name && email ? '  |  ' : '') + (email || ''));
+  addBotMsg(display + ' What would you like to know about the bubble tea machine program?');
+  if (visitorName || visitorEmail) setTidioVisitor();
+  addSuggestions();
+  enableInput();
+}
+
+function skipContact() {
+  document.getElementById('contactCard').remove();
+  addBotMsg("No problem! What would you like to know about the bubble tea machine program?<br><br>没关系，请问您想了解什么？");
+  addSuggestions();
+  enableInput();
+}
+
+function findAnswer(text) {
+  const t = text.toLowerCase();
+  for (const item of kb) {
+    if (item.q.some(k => t.includes(k))) return item.a;
+  }
+  return null;
 }
 
 function ask(q) {
@@ -153,14 +238,19 @@ function sendMsg() {
     if (ans) {
       addBotMsg(ans);
       conversationLog.push({ role: 'bot', text: stripHtml(ans) });
+      syncToTidio();
     } else {
-      const fallback = 'This question is best answered by our team. Please click the chat icon at the bottom of this page to speak with us directly.<br><br>这个问题由我们的团队来回答更合适，请点击页面底部的聊天图标联系我们，我们会尽快回复您。';
+      const fallback = 'This question is best answered by our team. Please click the chat icon on the right side of this page to speak with us directly.<br><br>这个问题由我们的团队来回答更合适，请点击页面右侧的聊天图标联系我们，我们会尽快回复您。';
       addBotMsg(fallback);
       conversationLog.push({ role: 'bot', text: 'Transferred to human agent.' });
-      sendConversationToTidio();
+      syncToTidio();
+      handoffToTidio();
     }
   }, 700);
 }
+
+// Start with contact card
+window.addEventListener('load', showContactCard);
 </script>
 
 <script src="//code.tidio.co/cmugavljrqny2fjtctdcbrkn2lcqgveu.js" async></script>
