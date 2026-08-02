@@ -19,7 +19,6 @@
   .bubble { max-width: 78%; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.55; }
   .bubble.bot { background: #fff; color: #1a1a1a; border-radius: 4px 18px 18px 18px; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
   .bubble.user { background: #1A7A8A; color: #fff; border-radius: 18px 18px 4px 18px; }
-  .bubble.typing { color: #888; font-style: italic; background: #fff; border-radius: 4px 18px 18px 18px; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
   .suggestions { display: flex; flex-wrap: wrap; gap: 7px; padding: 4px 0 4px 36px; }
   .suggestion { font-size: 12px; padding: 6px 12px; border: 1.5px solid #1A7A8A; color: #1A7A8A; border-radius: 16px; cursor: pointer; background: #fff; transition: all 0.15s; }
   .suggestion:hover, .suggestion:active { background: #1A7A8A; color: #fff; }
@@ -29,6 +28,8 @@
   .send-btn { width: 38px; height: 38px; border-radius: 50%; background: #1A7A8A; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: background 0.15s; }
   .send-btn:hover { background: #155f6e; }
   .send-btn svg { width: 16px; height: 16px; fill: #fff; }
+  /* Push Tidio widget up so it doesn't overlap the input bar */
+  #tidio-chat-iframe { bottom: 80px !important; }
 </style>
 </head>
 <body>
@@ -83,12 +84,18 @@ const kb = [
   { q: ["inventory","how much stock","keep on hand"], a: "We recommend keeping roughly <strong>0.5–1.5 months of inventory</strong> on hand at each location. Mascon tracks usage and will flag when reorders are needed." },
 ];
 
+const conversationLog = [];
+
 function findAnswer(text) {
   const t = text.toLowerCase();
   for (const item of kb) {
     if (item.q.some(k => t.includes(k))) return item.a;
   }
   return null;
+}
+
+function stripHtml(html) {
+  return html.replace(/<[^>]*>/g, '');
 }
 
 function addBotMsg(html) {
@@ -110,6 +117,22 @@ function addUserMsg(text) {
   body.scrollTop = body.scrollHeight;
 }
 
+function sendConversationToTidio() {
+  if (conversationLog.length === 0) return;
+  const summary = conversationLog.map(m =>
+    (m.role === 'user' ? '👤 Customer: ' : '🤖 Bot: ') + m.text
+  ).join('\n');
+  const sendWhenReady = setInterval(() => {
+    if (window.tidioChatApi) {
+      clearInterval(sendWhenReady);
+      window.tidioChatApi.open();
+      window.tidioChatApi.messageFromVisitor(
+        '--- Previous conversation ---\n' + summary + '\n--- End of previous conversation ---\n\nI need help from a team member.'
+      );
+    }
+  }, 300);
+}
+
 function ask(q) {
   document.getElementById('userInput').value = q;
   sendMsg();
@@ -121,6 +144,7 @@ function sendMsg() {
   if (!text) return;
   input.value = '';
   addUserMsg(text);
+  conversationLog.push({ role: 'user', text: text });
 
   const typing = addBotMsg('<span style="color:#aaa;font-style:italic">Typing...</span>');
   setTimeout(() => {
@@ -128,8 +152,12 @@ function sendMsg() {
     const ans = findAnswer(text);
     if (ans) {
       addBotMsg(ans);
+      conversationLog.push({ role: 'bot', text: stripHtml(ans) });
     } else {
-      addBotMsg('This question is best answered by our team directly. Please click the chat icon at the bottom right of this page to speak with us — we\'ll get back to you right away.<br><br>这个问题由我们的团队来回答更合适，请点击页面右下角的聊天图标联系我们，我们会尽快回复您。');
+      const fallback = 'This question is best answered by our team. Please click the chat icon at the bottom of this page to speak with us directly.<br><br>这个问题由我们的团队来回答更合适，请点击页面底部的聊天图标联系我们，我们会尽快回复您。';
+      addBotMsg(fallback);
+      conversationLog.push({ role: 'bot', text: 'Transferred to human agent.' });
+      sendConversationToTidio();
     }
   }, 700);
 }
